@@ -1,34 +1,17 @@
-use std::path::Path;
-use raylib::texture::Texture2D;
 use raylib::prelude::*;
+use raylib::texture::Texture2D;
+use std::path::Path;
+
+use crate::textgrid::Grid;
+
+mod tmfont;
+mod textgrid;
 
 #[derive(Debug)]
-enum TextmigError {
-    FontSrcDoesNotExist(String),
+pub enum SadieError {
+    FontSrcDoesNotExist,
 }
-type TMResult<T> = Result<T, TextmigError>;
-struct Grid {
-    dimensions: (u16, u16),
-    data: Vec<u8>, // flattened 2d array
-    tmfont_src: Texture2D,
-}
-
-impl Grid {
-    fn new(width: u16, height: u16, tmfont_src: Texture2D) -> Self {
-       Self {
-           dimensions: (width, height),
-           data: Vec::with_capacity({width * height} as usize),
-           tmfont_src,
-       }
-    }
-
-    fn load(rl: &mut RaylibHandle, rt: &RaylibThread, path: &Path) -> TMResult<Self> {
-       let tex = rl.load_texture(rt, path.to_str().expect("Path is not valid UTF-8"))
-           .map_err(TextmigError::FontSrcDoesNotExist)?;
-
-        Ok(Self::new(8, 8, tex))
-    }
-}
+pub type TMResult<T> = Result<T, SadieError>;
 
 struct Env {
     rl: RaylibHandle,
@@ -38,18 +21,11 @@ struct Env {
 
 impl Env {
     fn new(path_to_font_src: &Path) -> TMResult<Self> {
-        let (mut rl, thread) = init()
-            .size(640, 480)
-            .title("Textmig")
-            .build();
+        let (mut rl, thread) = init().size(640, 480).title("Textmig").build();
 
         let grid = Grid::load(&mut rl, &thread, path_to_font_src)?;
 
-        Ok(Self {
-            rl,
-            thread,
-            grid
-        })
+        Ok(Self { rl, thread, grid })
     }
 
     fn run(&mut self) -> TMResult<()> {
