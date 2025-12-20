@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+euclid = "0.22.11"
 raylib ={ version = "5.0" }
 thiserror = "2.0.17"

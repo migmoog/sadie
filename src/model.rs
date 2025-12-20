@@ -1,96 +1,39 @@
-use std::{
-    collections::{HashMap, HashSet},
-    ops::{Index, IndexMut},
-    slice::Iter,
-};
+mod actions;
+mod array2d;
+use array2d::Array2D;
 
-pub struct Array2D<T>(Vec<T>, u16);
-
-/// coordinate to index
-#[macro_export]
-macro_rules! ctoi {
-    ($width:expr, $x:expr, $y:expr) => {
-        {$y*$width + $x} as usize
-    };
-}
-
-pub use ctoi;
-
-impl<T: Default> Array2D<T> {
-    pub fn new(width: u16, height: u16) -> Self {
-        let area = { width * height } as usize;
-        let mut data = Vec::with_capacity(area);
-        for _ in 0..area {
-            data.push(T::default());
-        }
-        Self(data, width)
-    }
-}
-
-impl<T> Array2D<T> {
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn slice(&self) -> &[T] {
-        self.0.as_slice()
-    }
-
-    pub fn mut_slice(&mut self) -> &mut [T] {
-        self.0.as_mut_slice()
-    }
-
-    pub fn index_to_coord(&self, i: usize) -> (u16, u16) {
-        let i = i as u16;
-        (i % self.1, i / self.1)
-    }
-}
-
-impl<T> Index<[u16; 2]> for Array2D<T> {
-    type Output = T;
-
-    fn index(&self, index: [u16; 2]) -> &Self::Output {
-        let [x, y] = index;
-        &self.0[ctoi!(self.1, x, y)]
-    }
-}
-
-impl<T> IndexMut<[u16; 2]> for Array2D<T> {
-    fn index_mut(&mut self, index: [u16; 2]) -> &mut Self::Output {
-        let [x, y] = index;
-        &mut self.0[ctoi!(self.1, x, y)]
-    }
-}
-
-#[cfg(test)]
-mod array_2d_test {
-    use super::Array2D;
-
-    #[derive(Debug, Eq, PartialEq, Default)]
-    enum MockType {
-        #[default]
-        A,
-        B,
-    }
-
-    #[test]
-    fn manipulation() {
-        let mut a = Array2D::<MockType>::new(2, 2);
-        assert_eq!(a.len(), 4);
-        assert_eq!(a[[0, 0]], MockType::A);
-        a[[0, 0]] = MockType::B;
-        assert_eq!(a[[0, 0]], MockType::B);
-    }
-}
+use euclid::default::{Point2D, Size2D};
 
 pub type CharID = u16;
-/// Consumes a character ID and
-pub trait Charset {
+
+/// Keeps track of Characters for drawing textmode art
+pub trait Charset: Clone {
     type Item;
+
+    /// Return the character corresponding to the id
     fn get_char(&self, id: CharID) -> Self::Item;
+
+    /// Returns the number of characters in this set
+    fn len(&self) -> u16;
 }
 
-pub struct CanvasModel<C, A = ()> {
+type Position = Point2D<u16>;
+pub struct Cursor {
+    origin: Option<Position>,
+    position: Position,
+    bounds: Size2D<u16>,
+}
+impl Cursor {
+    fn new(position: Position, bottom_bound: u16, right_bound: u16) -> Self {
+        Self {
+            origin: None,
+            position,
+            bounds: (bottom_bound, right_bound).into(),
+        }
+    }
+}
+
+pub struct Canvas<C, A = ()> {
     /// The full grid of items.
     data: Array2D<(CharID, A)>,
 
@@ -99,24 +42,72 @@ pub struct CanvasModel<C, A = ()> {
     /// might have just ASCII or UTF-8, but this raylib frontend has numerical IDs that
     /// correspond to characters.
     charset: C,
+
+    /// Canvas may have multiple cursors for doing actions. Examples:
+    ///  - Font canvas has a cursor for picking a character
+    ///  - Palette canvas has a cursor for picking a character
+    cursors: Vec<Cursor>,
 }
 
-impl<T, C, A> CanvasModel<C, A>
+pub struct CanvasBuilder<C> {
+    size: Option<Size2D<u16>>,
+    charset: C,
+    cursor_positions: Vec<Position>,
+}
+
+impl<T, C> CanvasBuilder<C>
 where
     C: Charset<Item = T>,
-    A: Default,
 {
-    pub fn new(width: u16, height: u16, charset: C) -> Self {
+    pub fn init(charset: C) -> Self {
         Self {
-            data: Array2D::new(width, height),
+            size: None,
+            cursor_positions: vec![],
             charset,
         }
     }
 
-    pub fn put(&mut self, x: u16, y: u16, value: CharID, attributes: A) {
-        self.data[[x, y]] = (value, attributes);
+    /// Specifies the dimensions of the canvas
+    pub fn size(mut self, width: u16, height: u16) -> Self {
+        self.size = Some((width, height).into());
+        self
     }
 
+    /// Pushes a cursor onto the canvas
+    pub fn cursor_position(mut self, x: u16, y: u16) -> Self {
+        self.cursor_positions.push((x, y).into());
+        self
+    }
+
+    pub fn build<A: Default>(self) -> Canvas<C, A> {
+        let (width, height) = self.size.map(|s| s.into()).unwrap_or((8, 8));
+        let mut cursors = self.cursor_positions;
+        if cursors.is_empty() {
+            cursors.push((0, 0).into());
+        }
+        let cursors = cursors
+            .into_iter()
+            .map(|p| Cursor::new(p, width, height))
+            .collect();
+
+        Canvas {
+            data: Array2D::new(width, height),
+            charset: self.charset,
+            cursors,
+        }
+    }
+
+    pub fn build_no_attrs(self) -> Canvas<C> {
+        self.build::<()>()
+    }
+}
+
+pub type Cell<'a, T, A> = (u16, u16, T, &'a A);
+
+impl<T, C, A> Canvas<C, A>
+where
+    C: Charset<Item = T>,
+{
     pub fn len(&self) -> usize {
         self.data.len()
     }
@@ -138,7 +129,7 @@ where
     }
 
     /// Returns an iter of cells
-    pub fn cells(&self) -> impl Iterator<Item = (u16, u16, T, &A)> {
+    pub fn cells(&self) -> impl Iterator<Item = Cell<T, A>> {
         self.data
             .slice()
             .iter()
@@ -152,6 +143,10 @@ where
     pub fn charset(&self) -> &C {
         &self.charset
     }
+
+    pub fn size(&self) -> Size2D<u16> {
+        self.data.sides()
+    }
 }
 
 #[cfg(test)]
@@ -159,6 +154,7 @@ mod canvas_model_test {
     use super::*;
     use std::collections::HashMap;
 
+    #[derive(Clone)]
     struct MockCharset<T> {
         map: HashMap<CharID, T>,
     }
@@ -175,6 +171,10 @@ mod canvas_model_test {
         type Item = T;
         fn get_char(&self, id: CharID) -> Self::Item {
             self.map.get(&id).unwrap().clone()
+        }
+
+        fn len(&self) -> u16 {
+            self.map.len() as u16
         }
     }
 
@@ -199,9 +199,10 @@ mod canvas_model_test {
 
     #[test]
     fn putting_in_attributes() {
-        let mut canvas = CanvasModel {
+        let mut canvas = Canvas {
             data: Array2D::<Cell>::new(8, 8),
             charset: MockCharset { map: flowers_map() },
+            cursors: vec![],
         };
 
         assert_eq!(
@@ -209,7 +210,7 @@ mod canvas_model_test {
             vec![(0, Soil::Brown); 8 * 8].iter().collect::<Vec<&Cell>>()
         );
 
-        canvas.put(4, 4, 1, Soil::Green);
+        canvas.get_mut(4, 4).1 = Soil::Green;
         assert_eq!(canvas.get(4, 4), &(1, Soil::Green));
     }
 }
