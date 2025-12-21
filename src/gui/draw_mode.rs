@@ -1,4 +1,3 @@
-use euclid::default::Size2D;
 use crate::{
     gui::font::TextmodeFont,
     model::{Canvas, CanvasBuilder, Cell, CharID, Charset},
@@ -195,7 +194,20 @@ pub struct UserCanvas(GuiCanvas<TextmodeFont, Attr>);
 
 impl UserCanvas {
     pub fn new(rl: &mut RaylibHandle, rt: &RaylibThread, canvas: Canvas<TextmodeFont, Attr>) -> Self {
-        Self(GuiCanvas::with_target(canvas, rl, rt))
+        let mut gc = GuiCanvas::with_target(canvas, rl, rt);
+        let l = gc.canvas.len();
+        for (id, attr) in gc.canvas.iter_mut() {
+            *id = rl.get_random_value::<i32>(0..{ l as i32 }) as CharID;
+            let clrs = [Color::RED, Color::BLUE, Color::GREEN];
+
+            let clrl = clrs.len() as i32;
+            let fgi = rl.get_random_value::<i32>(0..clrl-1) as usize;
+            attr.fg = clrs[fgi];
+            let bgi = rl.get_random_value::<i32>(0..clrl-1) as usize;
+            attr.bg = clrs[bgi];
+        }
+
+        Self(gc)
     }
 }
 
