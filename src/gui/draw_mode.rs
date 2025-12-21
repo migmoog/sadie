@@ -1,10 +1,11 @@
+use euclid::default::Size2D;
 use crate::{
     gui::font::TextmodeFont,
     model::{Canvas, CanvasBuilder, Cell, CharID, Charset},
 };
 use raylib::prelude::*;
 
-struct Attr {
+pub struct Attr {
     fg: Color,
     bg: Color,
 }
@@ -37,15 +38,16 @@ impl<C, A> AsRef<raylib::ffi::Texture> for GuiCanvas<C, A> {
 
 impl<A> GuiCanvas<TextmodeFont, A> {
     fn with_target(
-        tf: TextmodeFont,
         canvas: Canvas<TextmodeFont, A>,
         rl: &mut RaylibHandle,
         rt: &RaylibThread,
     ) -> Self {
-        let (w, h) = tf.quad_dimensions();
+        let (w, h) = canvas.charset().quad_dimensions();
         let s = canvas.size();
 
-        let target = rl.load_render_texture(&rt, w * s.width as u32, h * s.height as u32).expect("couldn't make render texture");
+        let target = rl
+            .load_render_texture(&rt, w * s.width as u32, h * s.height as u32)
+            .expect("couldn't make render texture");
 
         Self { canvas, target }
     }
@@ -83,10 +85,37 @@ impl Charset for Palette {
     }
 }
 
+impl Palette {
+    pub const PICO8: [Color; 16] = [
+        Color { r: 0, g: 0, b: 0, a: 255 },           // Black
+        Color { r: 29, g: 43, b: 83, a: 255 },        // Dark Blue
+        Color { r: 126, g: 37, b: 83, a: 255 },       // Dark Purple
+        Color { r: 0, g: 135, b: 81, a: 255 },        // Dark Green
+        Color { r: 171, g: 82, b: 54, a: 255 },       // Brown
+        Color { r: 95, g: 87, b: 79, a: 255 },        // Dark Gray
+        Color { r: 194, g: 195, b: 199, a: 255 },     // Light Gray
+        Color { r: 255, g: 241, b: 232, a: 255 },     // White
+        Color { r: 255, g: 0, b: 77, a: 255 },        // Red
+        Color { r: 255, g: 163, b: 0, a: 255 },       // Orange
+        Color { r: 255, g: 236, b: 39, a: 255 },      // Yellow
+        Color { r: 0, g: 228, b: 54, a: 255 },        // Green
+        Color { r: 41, g: 173, b: 255, a: 255 },      // Blue
+        Color { r: 131, g: 118, b: 156, a: 255 },     // Indigo
+        Color { r: 255, g: 119, b: 168, a: 255 },     // Pink
+        Color { r: 255, g: 204, b: 170, a: 255 },     // Peach
+    ];
+}
+
+impl<const N: usize> From<[Color;N]> for Palette {
+    fn from(colors: [Color;N]) -> Self {
+        Self(colors.into())
+    }
+}
+
 pub struct CharsetPicker(GuiCanvas<TextmodeFont>);
 
 impl CharsetPicker {
-    pub fn new(tf: TextmodeFont, target: RenderTexture2D) -> Self {
+    pub fn new(tf: TextmodeFont, rl: &mut RaylibHandle, rt: &RaylibThread) -> Self {
         let l = tf.len();
         let mut canvas = CanvasBuilder::init(tf)
             .size(l, 1)
@@ -97,7 +126,7 @@ impl CharsetPicker {
             *id = i as CharID;
         }
 
-        Self(GuiCanvas { canvas, target })
+        Self(GuiCanvas::with_target(canvas, rl, rt))
     }
 }
 
@@ -150,19 +179,23 @@ impl Draw for ColorPicker {
     where
         Rd: RaylibDraw + RaylibTextureModeExt,
     {
-        let (cells, mut rd) = self.0.begin_canvas_mode(rl, rt);
-        let (w, h) = (8, 8);
-        for (x, y, color, _) in cells {
-            rd.draw_rectangle(x as i32 * h, y as i32 * w, w, h, color);
+        {
+            let (cells, mut rd) = self.0.begin_canvas_mode(rl, rt);
+            let (w, h) = (8, 8);
+            for (x, y, color, _) in cells {
+                rd.draw_rectangle(x as i32 * h, y as i32 * w, w, h, color);
+            }
         }
+
+        rl.draw_texture(&self.0, 0, 300, Color::WHITE);
     }
 }
 
 pub struct UserCanvas(GuiCanvas<TextmodeFont, Attr>);
 
 impl UserCanvas {
-    pub fn new(canvas: Canvas<TextmodeFont, Attr>) -> Self {
-        Self(GuiCanvas { canvas, target })
+    pub fn new(rl: &mut RaylibHandle, rt: &RaylibThread, canvas: Canvas<TextmodeFont, Attr>) -> Self {
+        Self(GuiCanvas::with_target(canvas, rl, rt))
     }
 }
 
@@ -186,6 +219,6 @@ impl Draw for UserCanvas {
                 );
             }
         }
-        rl.draw_texture(&self.0, 150, 80, Color::WHITE);
+        rl.draw_texture(&self.0, 0, 0, Color::WHITE);
     }
 }
