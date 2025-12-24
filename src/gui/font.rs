@@ -1,7 +1,8 @@
 use std::{collections::HashMap, ops::Deref, rc::Rc};
+use euclid::default::Size2D;
 use raylib::prelude::*;
 
-use crate::{SadieError, model::{CharID, Charset}};
+use crate::{SadieError, gui::GuiCharset, model::{CharID, Charset}};
 
 #[cfg(test)]
 mod textmode_font_test {
@@ -74,6 +75,18 @@ impl Charset for TextmodeFont {
     }
 }
 
+impl GuiCharset for TextmodeFont {
+    fn get_char_size(&self) -> Size2D<u16> {
+        let (_, q) = self
+            .char_quads
+            .iter()
+            .next()
+            .expect("textmode font has no quads");
+
+        (q.width as u16, q.height as u16).into()
+    }
+}
+
 impl TextmodeFont {
     fn make_char_quads(
         texture_width: i32,
@@ -130,16 +143,5 @@ impl TextmodeFont {
         let char_quads = Self::make_char_quads(source.width(), source.height(), columns, rows);
 
         Ok(Self { source, char_quads })
-    }
-
-    /// Helper for creating canvases
-    pub fn quad_dimensions(&self) -> (u32, u32) {
-        let (_, q) = self
-            .char_quads
-            .iter()
-            .next()
-            .expect("textmode font has no quads");
-
-        (q.width as u32, q.height as u32)
     }
 }

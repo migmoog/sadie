@@ -45,6 +45,10 @@ impl<T> Array2D<T> {
         let height = self.0.len() as u16 / self.1;
         (self.1, height).into()
     }
+
+    pub fn set_width(&mut self, width: u16) {
+        self.1 = width;
+    }
 }
 
 impl<T> Index<[u16; 2]> for Array2D<T> {

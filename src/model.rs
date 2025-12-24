@@ -17,7 +17,7 @@ pub trait Charset: Clone {
     fn len(&self) -> u16;
 }
 
-type Position = Point2D<u16>;
+pub type Position = Point2D<u16>;
 pub struct Cursor {
     origin: Option<Position>,
     position: Position,
@@ -30,6 +30,10 @@ impl Cursor {
             position,
             bounds: (bottom_bound, right_bound).into(),
         }
+    }
+
+    pub fn position(&self) -> Position {
+        self.position
     }
 }
 
@@ -146,6 +150,14 @@ where
 
     pub fn size(&self) -> Size2D<u16> {
         self.data.sides()
+    }
+
+    pub fn set_size(&mut self, new_size: Size2D<u16>) {
+        self.data.set_width(new_size.width);
+
+        for c in self.cursors.iter_mut() {
+            c.bounds = new_size;
+        }
     }
 }
 

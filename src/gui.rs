@@ -3,65 +3,50 @@ mod font;
 // Contains the components of the GUI that the users use to paint to a canvas
 mod draw_mode;
 
+use std::collections::HashMap;
+
+use euclid::default::Size2D;
 use font::TextmodeFont;
 
 /// GUI for image based textmode. Powered by raylib
 use raylib::prelude::*;
 
-use crate::{
-    gui::draw_mode::{CharsetPicker, ColorPicker, UserCanvas},
-    model::CanvasBuilder,
-    SadieError,
-};
-use crate::gui::draw_mode::{Draw, Palette, Attr};
+use crate::gui::draw_mode::{Palette, GuiComponent};
+use crate::model::{CanvasBuilder, Charset, Position};
+use crate::SadieError;
 
-pub struct Env {
-    rl: RaylibHandle,
-    rt: RaylibThread,
-    user_canvas: UserCanvas,
-    charset_picker: CharsetPicker,
-    color_picker: ColorPicker,
+pub trait GuiCharset: Charset {
+    fn get_char_size(&self) -> Size2D<u16>;
 }
 
-const DEFAULT_ID: u16 = 255;
-impl Env {
-    fn setup_canvas_texture(
-        rl: &mut RaylibHandle,
-        rt: &RaylibThread,
-        charset: &TextmodeFont,
-        columns: u16,
-        rows: u16,
-    ) -> Result<RenderTexture2D, SadieError> {
-        let (char_width, char_height) = charset.quad_dimensions();
-        let canvas_texture = rl
-            .load_render_texture(rt, columns as u32 * char_width, rows as u32 * char_height)
-            .map_err(SadieError::Raylib)?;
+pub struct Client {
+    rl: RaylibHandle,
+    rt: RaylibThread,
 
-        Ok(canvas_texture)
-    }
+    ui_components: HashMap<Position, GuiComponent>,
+}
 
+impl Client {
     pub fn new() -> Result<Self, SadieError> {
         let (mut rl, rt) = init().title("Sadie").build();
 
         let charset = TextmodeFont::load_charset(&mut rl, &rt, "gloop_8x8.png", 16, 16)?;
-        let (columns, rows) = (8, 8);
+        let palette = Palette::default();
 
-        let charset_picker = CharsetPicker::new(charset.clone(), &mut rl, &rt);
-        let uc = CanvasBuilder::init(charset.clone())
-            .size(8, 8)
-            .build::<Attr>();
-        let user_canvas = UserCanvas::new(&mut rl, &rt, uc);
+        let ui_components = HashMap::from([
+            ((0, 0).into(), GuiComponent::make_user_canvas(
+                &mut rl,
+                &rt,
+                CanvasBuilder::init(charset.clone())
+                    .cursor_position(0, 0)
+                    .size(16, 14)
+                    .build()
+            )),
+            ( (0, 200).into(), GuiComponent::make_charset_picker(charset.clone(), &mut rl, &rt) ),
+            ((0, 150).into(), GuiComponent::make_color_picker(palette, &mut rl, &rt))
+        ]);
 
-        let cp_target = rl.load_render_texture(&rt, 8 * 16, 8 * 16).unwrap();
-        let color_picker = ColorPicker::new(Palette::PICO8.into(), cp_target);
-
-        Ok(Self {
-            rl,
-            rt,
-            user_canvas,
-            color_picker,
-            charset_picker
-        })
+        Ok(Self { rl, rt, ui_components })
     }
 
     pub fn run(&mut self) -> Result<(), SadieError> {
@@ -70,9 +55,9 @@ impl Env {
             let mut d = self.rl.begin_drawing(thread);
             d.clear_background(Color::RAYWHITE);
 
-            self.charset_picker.draw(&mut d, thread);
-            self.color_picker.draw(&mut d, thread);
-            self.user_canvas.draw(&mut d, thread);
+            for (&p, comp) in self.ui_components.iter_mut() {
+                comp.draw(p, &mut d, thread);
+            }
         }
 
         Ok(())

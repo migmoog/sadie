@@ -1,7 +1,7 @@
 use raylib::prelude::*;
 use thiserror::Error;
 
-use crate::gui::Env;
+use crate::gui::Client;
 
 mod gui;
 mod model;
@@ -29,6 +29,6 @@ in {:?}",
 }
 
 fn main() -> Result<(), SadieError> {
-    Env::new()?.run()?;
+    Client::new()?.run()?;
     Ok(())
 }
