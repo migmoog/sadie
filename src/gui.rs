@@ -8,11 +8,12 @@ use std::collections::HashMap;
 
 use euclid::default::Size2D;
 use font::TextmodeFont;
+use palette::Palette;
 
 /// GUI for image based textmode. Powered by raylib
 use raylib::prelude::*;
 
-use crate::gui::draw_mode::{GuiComponent, Palette};
+use crate::gui::draw_mode::GuiComponent;
 use crate::model::{CanvasBuilder, CanvasPos, Charset};
 use crate::SadieError;
 

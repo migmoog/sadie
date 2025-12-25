@@ -1,8 +1,8 @@
 use crate::{
-    gui::{font::TextmodeFont, GuiCharset},
+    gui::{font::TextmodeFont, palette::Palette, GuiCharset},
     model::{Canvas, CanvasBuilder, CanvasPos, CharID, Charset, Cursor},
 };
-use euclid::default::Size2D;
+use euclid::default::{Point2D, Size2D};
 use raylib::prelude::*;
 
 pub enum GuiComponent {
@@ -31,7 +31,7 @@ impl GuiComponent {
         let mut canvas = CanvasBuilder::init(p)
             .size(l, 1)
             .cursor_position(0, 0)
-            .cursor_position(1, l)
+            .cursor_position(1, 0)
             .build_no_attrs();
 
         for (i, (id, _)) in canvas.iter_mut().enumerate() {
@@ -74,6 +74,27 @@ impl GuiComponent {
     }
 }
 
+fn draw_x_cursor<Rd: RaylibDraw>(d: &mut Rd, c: &Cursor, size: Size2D<u16>) {
+    let p = c.position();
+    let start: Point2D<i32> = ({ p.x * size.width } as i32, { p.y * size.height } as i32).into();
+    let end: Point2D<i32> = (start.x + size.width as i32, start.y + size.height as i32).into();
+
+    d.draw_line(
+        start.x,
+        start.y,
+        end.x,
+        end.y,
+        Color::RED
+    );
+    d.draw_line(
+        start.x,
+        end.y,
+        end.x,
+        start.y,
+        Color::RED
+    );
+}
+
 fn draw_charset_picker<Rd>(
     gc: &mut GuiCanvas<TextmodeFont>,
     p: CanvasPos,
@@ -95,36 +116,42 @@ fn draw_charset_picker<Rd>(
         );
     });
 
+    let size = gc.model.charset().get_char_size();
+    gc.draw_cursors_mode(rl, rt, |d, c| draw_x_cursor(d, c, size));
+
     rl.draw_texture(&gc, p.x.into(), p.y.into(), Color::WHITE);
 }
 
 fn draw_color_picker<Rd>(
-    canvas: &mut GuiCanvas<Palette>,
+    gc: &mut GuiCanvas<Palette>,
     p: CanvasPos,
     rl: &mut Rd,
     rt: &RaylibThread,
 ) where
     Rd: RaylibDraw + RaylibTextureModeExt,
 {
-    let s = canvas.model.charset().get_char_size();
-    canvas.draw_cells_mode(rl, rt, |d, p, t, _| {
+    let s = gc.model.charset().get_char_size();
+    gc.draw_cells_mode(rl, rt, |d, p, t, _| {
         let (w, h) = (s.width as i32, s.height as i32);
         d.draw_rectangle(p.x as i32 * h, p.y as i32 * w, w, h, t);
     });
 
-    rl.draw_texture(&canvas, p.x.into(), p.y.into(), Color::WHITE);
+    let size = gc.model.charset().get_char_size();
+    gc.draw_cursors_mode(rl, rt, |d, c| draw_x_cursor(d, c, size));
+
+    rl.draw_texture(&gc, p.x.into(), p.y.into(), Color::WHITE);
 }
 
 fn draw_user_canvas<Rd>(
-    canvas: &mut GuiCanvas<TextmodeFont, Attr>,
+    gc: &mut GuiCanvas<TextmodeFont, Attr>,
     p: CanvasPos,
     rl: &mut Rd,
     rt: &RaylibThread,
 ) where
     Rd: RaylibDraw + RaylibTextureModeExt,
 {
-    let src = canvas.model.charset().source.clone();
-    canvas.draw_cells_mode(rl, rt, |d, p, r, _| {
+    let src = gc.model.charset().source.clone();
+    gc.draw_cells_mode(rl, rt, |d, p, r, _| {
         d.draw_texture_rec(
             &src,
             r,
@@ -136,7 +163,10 @@ fn draw_user_canvas<Rd>(
         );
     });
 
-    rl.draw_texture(&canvas, p.x.into(), p.y.into(), Color::WHITE);
+    let size = gc.model.charset().get_char_size();
+    gc.draw_cursors_mode(rl, rt, |d, c| draw_x_cursor(d, c, size));
+
+    rl.draw_texture(&gc, p.x.into(), p.y.into(), Color::WHITE);
 }
 
 pub struct Attr {
@@ -218,4 +248,3 @@ where
         }
     }
 }
-
