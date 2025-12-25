@@ -1,6 +1,6 @@
 use crate::{
     gui::{font::TextmodeFont, GuiCharset},
-    model::{Canvas, CanvasBuilder, Cell, CharID, Charset, Position},
+    model::{Canvas, CanvasBuilder, CanvasPos, CharID, Charset},
 };
 use euclid::default::Size2D;
 use raylib::prelude::*;
@@ -62,7 +62,7 @@ impl GuiComponent {
         Self::UserCanvas(gc)
     }
 
-    pub fn draw<Rd>(&mut self, p: Position, rd: &mut Rd, rt: &RaylibThread)
+    pub fn draw<Rd>(&mut self, p: CanvasPos, rd: &mut Rd, rt: &RaylibThread)
     where
         Rd: RaylibDraw + RaylibTextureModeExt,
     {
@@ -76,74 +76,97 @@ impl GuiComponent {
 
 fn draw_charset_picker<Rd>(
     gc: &mut GuiCanvas<TextmodeFont>,
-    p: Position,
+    p: CanvasPos,
     rl: &mut Rd,
     rt: &RaylibThread,
 ) where
     Rd: RaylibDraw + RaylibTextureModeExt,
 {
-    {
-        let src = gc.model.charset().source.clone();
-        let (cells, mut rd) = gc.begin_canvas_mode(rl, rt);
+    // {
+    //     let canvas = &gc.model;
+    //     let src = canvas.charset().source.clone();
+    //     let (cells, mut rd) = gc.begin_canvas_mode(rl, rt);
+    //
+    //     for (x, y, r, _) in cells {
+    //         rd.draw_texture_rec(
+    //             &src,
+    //             r,
+    //             Vector2 {
+    //                 x: x as f32 * r.width,
+    //                 y: y as f32 * r.height,
+    //             },
+    //             Color::WHITE,
+    //         );
+    //     }
+    //
+    //     let (cell_width, cell_height) = {
+    //         let s = canvas.charset().get_char_size();
+    //         (s.width as i32, s.height as i32)
+    //     };
+    //     draw_cursors(&mut rd, &canvas, |d, cp| {
+    //         let (start_pos_x, start_pos_y) =
+    //             { (cp.x as i32 * cell_width, cp.y as i32 * cell_height) };
+    //         let (end_pos_x, end_pos_y) = (start_pos_x + cell_width, start_pos_y + cell_height);
+    //         // draw an X
+    //         d.draw_line(start_pos_x, start_pos_y, end_pos_x, end_pos_y, Color::WHITE);
+    //         d.draw_line(end_pos_x, start_pos_y, start_pos_x, end_pos_y, Color::WHITE);
+    //     });
+    // }
 
-        for (x, y, r, _) in cells {
-            rd.draw_texture_rec(
-                &src,
-                r,
-                Vector2 {
-                    x: x as f32 * r.width,
-                    y: y as f32 * r.height,
-                },
-                Color::WHITE,
-            );
-        }
-    }
+    let src = gc.model.charset().source.clone();
+    gc.draw_cells_mode(rl, rt, |d, p, r, _| {
+        d.draw_texture_rec(
+            &src,
+            r,
+            Vector2 {
+                x: p.x as f32 * r.width,
+                y: p.y as f32 * r.height,
+            },
+            Color::WHITE,
+        );
+    });
 
     rl.draw_texture(&gc, p.x.into(), p.y.into(), Color::WHITE);
 }
 
 fn draw_color_picker<Rd>(
     canvas: &mut GuiCanvas<Palette>,
-    p: Position,
+    p: CanvasPos,
     rl: &mut Rd,
     rt: &RaylibThread,
 ) where
     Rd: RaylibDraw + RaylibTextureModeExt,
 {
-    {
-        let (cells, mut rd) = canvas.begin_canvas_mode(rl, rt);
-        let (w, h) = (8, 8);
-        for (x, y, color, _) in cells {
-            rd.draw_rectangle(x as i32 * h, y as i32 * w, w, h, color);
-        }
-    }
+    let s = canvas.model.charset().get_char_size();
+    canvas.draw_cells_mode(rl, rt, |d, p, t, _| {
+        let (w, h) = (s.width as i32, s.height as i32);
+        d.draw_rectangle(p.x as i32 * h, p.y as i32 * w, w, h, t);
+    });
 
     rl.draw_texture(&canvas, p.x.into(), p.y.into(), Color::WHITE);
 }
 
 fn draw_user_canvas<Rd>(
     canvas: &mut GuiCanvas<TextmodeFont, Attr>,
-    p: Position,
+    p: CanvasPos,
     rl: &mut Rd,
     rt: &RaylibThread,
 ) where
     Rd: RaylibDraw + RaylibTextureModeExt,
 {
-    {
-        let src = canvas.model.charset().source.clone();
-        let (cells, mut rd) = canvas.begin_canvas_mode(rl, rt);
-        for (x, y, r, a) in cells {
-            rd.draw_texture_rec(
-                &src,
-                r,
-                Vector2 {
-                    x: x as f32 * r.width,
-                    y: y as f32 * r.height,
-                },
-                Color::WHITE,
-            );
-        }
-    }
+    let src = canvas.model.charset().source.clone();
+    canvas.draw_cells_mode(rl, rt, |d, p, r, _| {
+        d.draw_texture_rec(
+            &src,
+            r,
+            Vector2 {
+                x: p.x as f32 * r.width,
+                y: p.y as f32 * r.height,
+            },
+            Color::WHITE,
+        );
+    });
+
     rl.draw_texture(&canvas, p.x.into(), p.y.into(), Color::WHITE);
 }
 
@@ -172,9 +195,9 @@ impl<C, A> AsRef<raylib::ffi::Texture> for GuiCanvas<C, A> {
     }
 }
 
-impl<T, C, A> GuiCanvas<C, A>
+impl<C, A> GuiCanvas<C, A>
 where
-    C: GuiCharset<Item = T>,
+    C: GuiCharset,
 {
     fn with_target(canvas: Canvas<C, A>, rl: &mut RaylibHandle, rt: &RaylibThread) -> Self {
         let size = canvas.charset().get_char_size();
@@ -200,18 +223,16 @@ impl<T, C, A> GuiCanvas<C, A>
 where
     C: Charset<Item = T>,
 {
-    fn begin_canvas_mode<'a, Rd>(
-        &'a mut self,
-        rl: &'a mut Rd,
-        rt: &'a RaylibThread,
-    ) -> (impl Iterator<Item = Cell<T, A>>, RaylibTextureMode<'a, Rd>)
+    fn draw_cells_mode<Rd, F>(&mut self, rl: &mut Rd, rt: &RaylibThread, mut callback: F)
     where
         Rd: RaylibDraw + RaylibTextureModeExt,
+        F: FnMut(&mut Rd, CanvasPos, T, &A),
     {
-        (
-            self.model.cells(),
-            rl.begin_texture_mode(rt, &mut self.target),
-        )
+        let mut d = rl.begin_texture_mode(rt, &mut self.target);
+
+        for (x, y, t, a) in self.model.cells() {
+            callback(&mut d, (x, y).into(), t, a);
+        }
     }
 }
 

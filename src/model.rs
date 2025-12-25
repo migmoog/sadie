@@ -1,5 +1,6 @@
 mod actions;
 mod array2d;
+
 use array2d::Array2D;
 
 use euclid::default::{Point2D, Size2D};
@@ -8,6 +9,7 @@ pub type CharID = u16;
 
 /// Keeps track of Characters for drawing textmode art
 pub trait Charset: Clone {
+    /// Data to be returned when providing a `CharID`
     type Item;
 
     /// Return the character corresponding to the id
@@ -17,14 +19,14 @@ pub trait Charset: Clone {
     fn len(&self) -> u16;
 }
 
-pub type Position = Point2D<u16>;
+pub type CanvasPos = Point2D<u16>;
 pub struct Cursor {
-    origin: Option<Position>,
-    position: Position,
+    origin: Option<CanvasPos>,
+    position: CanvasPos,
     bounds: Size2D<u16>,
 }
 impl Cursor {
-    fn new(position: Position, bottom_bound: u16, right_bound: u16) -> Self {
+    fn new(position: CanvasPos, bottom_bound: u16, right_bound: u16) -> Self {
         Self {
             origin: None,
             position,
@@ -32,7 +34,7 @@ impl Cursor {
         }
     }
 
-    pub fn position(&self) -> Position {
+    pub fn position(&self) -> CanvasPos {
         self.position
     }
 }
@@ -56,7 +58,7 @@ pub struct Canvas<C, A = ()> {
 pub struct CanvasBuilder<C> {
     size: Option<Size2D<u16>>,
     charset: C,
-    cursor_positions: Vec<Position>,
+    cursor_positions: Vec<CanvasPos>,
 }
 
 impl<T, C> CanvasBuilder<C>
@@ -152,12 +154,20 @@ where
         self.data.sides()
     }
 
+    /// Sets the new size, and updates the bounds of cursors
     pub fn set_size(&mut self, new_size: Size2D<u16>) {
         self.data.set_width(new_size.width);
 
         for c in self.cursors.iter_mut() {
             c.bounds = new_size;
         }
+    }
+
+    /// Returns state of cursors on the grid. Contents are:
+    /// - An optional icon to give information on how to draw the cursor
+    /// - and iterator of all the cursor's positions
+    pub fn cursors(&self) -> impl Iterator<Item = &Cursor> {
+        self.cursors.iter()
     }
 }
 

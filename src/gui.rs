@@ -12,7 +12,7 @@ use font::TextmodeFont;
 use raylib::prelude::*;
 
 use crate::gui::draw_mode::{Palette, GuiComponent};
-use crate::model::{CanvasBuilder, Charset, Position};
+use crate::model::{CanvasBuilder, Charset, CanvasPos};
 use crate::SadieError;
 
 pub trait GuiCharset: Charset {
@@ -23,7 +23,7 @@ pub struct Client {
     rl: RaylibHandle,
     rt: RaylibThread,
 
-    ui_components: HashMap<Position, GuiComponent>,
+    ui_components: HashMap<CanvasPos, GuiComponent>,
 }
 
 impl Client {
