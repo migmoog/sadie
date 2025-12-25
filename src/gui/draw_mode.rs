@@ -1,6 +1,6 @@
 use crate::{
     gui::{font::TextmodeFont, GuiCharset},
-    model::{Canvas, CanvasBuilder, CanvasPos, CharID, Charset},
+    model::{Canvas, CanvasBuilder, CanvasPos, CharID, Charset, Cursor},
 };
 use euclid::default::Size2D;
 use raylib::prelude::*;
@@ -82,37 +82,6 @@ fn draw_charset_picker<Rd>(
 ) where
     Rd: RaylibDraw + RaylibTextureModeExt,
 {
-    // {
-    //     let canvas = &gc.model;
-    //     let src = canvas.charset().source.clone();
-    //     let (cells, mut rd) = gc.begin_canvas_mode(rl, rt);
-    //
-    //     for (x, y, r, _) in cells {
-    //         rd.draw_texture_rec(
-    //             &src,
-    //             r,
-    //             Vector2 {
-    //                 x: x as f32 * r.width,
-    //                 y: y as f32 * r.height,
-    //             },
-    //             Color::WHITE,
-    //         );
-    //     }
-    //
-    //     let (cell_width, cell_height) = {
-    //         let s = canvas.charset().get_char_size();
-    //         (s.width as i32, s.height as i32)
-    //     };
-    //     draw_cursors(&mut rd, &canvas, |d, cp| {
-    //         let (start_pos_x, start_pos_y) =
-    //             { (cp.x as i32 * cell_width, cp.y as i32 * cell_height) };
-    //         let (end_pos_x, end_pos_y) = (start_pos_x + cell_width, start_pos_y + cell_height);
-    //         // draw an X
-    //         d.draw_line(start_pos_x, start_pos_y, end_pos_x, end_pos_y, Color::WHITE);
-    //         d.draw_line(end_pos_x, start_pos_y, start_pos_x, end_pos_y, Color::WHITE);
-    //     });
-    // }
-
     let src = gc.model.charset().source.clone();
     gc.draw_cells_mode(rl, rt, |d, p, r, _| {
         d.draw_texture_rec(
@@ -223,6 +192,7 @@ impl<T, C, A> GuiCanvas<C, A>
 where
     C: Charset<Item = T>,
 {
+    /// Takes a closure to draw all cells on the canvas
     fn draw_cells_mode<Rd, F>(&mut self, rl: &mut Rd, rt: &RaylibThread, mut callback: F)
     where
         Rd: RaylibDraw + RaylibTextureModeExt,
@@ -234,137 +204,18 @@ where
             callback(&mut d, (x, y).into(), t, a);
         }
     }
-}
 
-#[derive(Clone)]
-pub struct Palette(Vec<Color>, Size2D<u16>);
+    /// Takes a closure to draw all cursors atop the canvas
+    fn draw_cursors_mode<Rd, F>(&mut self, rl: &mut Rd, rt: &RaylibThread, mut callback: F)
+    where
+        Rd: RaylibDraw + RaylibTextureModeExt,
+        F: FnMut(&mut Rd, &Cursor),
+    {
+        let mut d = rl.begin_texture_mode(rt, &mut self.target);
 
-impl Charset for Palette {
-    fn len(&self) -> u16 {
-        self.0.len() as u16
-    }
-
-    type Item = Color;
-    fn get_char(&self, id: CharID) -> Self::Item {
-        self.0[id as usize]
-    }
-}
-
-impl Palette {
-    pub const PICO8: [Color; 16] = [
-        Color {
-            r: 0,
-            g: 0,
-            b: 0,
-            a: 255,
-        }, // Black
-        Color {
-            r: 29,
-            g: 43,
-            b: 83,
-            a: 255,
-        }, // Dark Blue
-        Color {
-            r: 126,
-            g: 37,
-            b: 83,
-            a: 255,
-        }, // Dark Purple
-        Color {
-            r: 0,
-            g: 135,
-            b: 81,
-            a: 255,
-        }, // Dark Green
-        Color {
-            r: 171,
-            g: 82,
-            b: 54,
-            a: 255,
-        }, // Brown
-        Color {
-            r: 95,
-            g: 87,
-            b: 79,
-            a: 255,
-        }, // Dark Gray
-        Color {
-            r: 194,
-            g: 195,
-            b: 199,
-            a: 255,
-        }, // Light Gray
-        Color {
-            r: 255,
-            g: 241,
-            b: 232,
-            a: 255,
-        }, // White
-        Color {
-            r: 255,
-            g: 0,
-            b: 77,
-            a: 255,
-        }, // Red
-        Color {
-            r: 255,
-            g: 163,
-            b: 0,
-            a: 255,
-        }, // Orange
-        Color {
-            r: 255,
-            g: 236,
-            b: 39,
-            a: 255,
-        }, // Yellow
-        Color {
-            r: 0,
-            g: 228,
-            b: 54,
-            a: 255,
-        }, // Green
-        Color {
-            r: 41,
-            g: 173,
-            b: 255,
-            a: 255,
-        }, // Blue
-        Color {
-            r: 131,
-            g: 118,
-            b: 156,
-            a: 255,
-        }, // Indigo
-        Color {
-            r: 255,
-            g: 119,
-            b: 168,
-            a: 255,
-        }, // Pink
-        Color {
-            r: 255,
-            g: 204,
-            b: 170,
-            a: 255,
-        }, // Peach
-    ];
-}
-
-impl<const N: usize> From<[Color; N]> for Palette {
-    fn from(colors: [Color; N]) -> Self {
-        Self(colors.into(), (8, 8).into())
+        for c in self.model.cursors() {
+            callback(&mut d, c);
+        }
     }
 }
 
-impl GuiCharset for Palette {
-    fn get_char_size(&self) -> Size2D<u16> {
-        self.1
-    }
-}
-
-impl Default for Palette {
-    fn default() -> Self {
-        Self(Self::PICO8.into(), (8, 8).into())
-    }
-}

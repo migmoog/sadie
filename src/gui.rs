@@ -1,5 +1,6 @@
 // Contains stuff for sourcing images for fonts and rendering them
 mod font;
+mod palette;
 // Contains the components of the GUI that the users use to paint to a canvas
 mod draw_mode;
 
@@ -11,8 +12,8 @@ use font::TextmodeFont;
 /// GUI for image based textmode. Powered by raylib
 use raylib::prelude::*;
 
-use crate::gui::draw_mode::{Palette, GuiComponent};
-use crate::model::{CanvasBuilder, Charset, CanvasPos};
+use crate::gui::draw_mode::{GuiComponent, Palette};
+use crate::model::{CanvasBuilder, CanvasPos, Charset};
 use crate::SadieError;
 
 pub trait GuiCharset: Charset {
@@ -34,19 +35,32 @@ impl Client {
         let palette = Palette::default();
 
         let ui_components = HashMap::from([
-            ((0, 0).into(), GuiComponent::make_user_canvas(
-                &mut rl,
-                &rt,
-                CanvasBuilder::init(charset.clone())
-                    .cursor_position(0, 0)
-                    .size(16, 14)
-                    .build()
-            )),
-            ( (0, 200).into(), GuiComponent::make_charset_picker(charset.clone(), &mut rl, &rt) ),
-            ((0, 150).into(), GuiComponent::make_color_picker(palette, &mut rl, &rt))
+            (
+                (0, 0).into(),
+                GuiComponent::make_user_canvas(
+                    &mut rl,
+                    &rt,
+                    CanvasBuilder::init(charset.clone())
+                        .cursor_position(0, 0)
+                        .size(16, 14)
+                        .build(),
+                ),
+            ),
+            (
+                (0, 200).into(),
+                GuiComponent::make_charset_picker(charset.clone(), &mut rl, &rt),
+            ),
+            (
+                (0, 150).into(),
+                GuiComponent::make_color_picker(palette, &mut rl, &rt),
+            ),
         ]);
 
-        Ok(Self { rl, rt, ui_components })
+        Ok(Self {
+            rl,
+            rt,
+            ui_components,
+        })
     }
 
     pub fn run(&mut self) -> Result<(), SadieError> {
