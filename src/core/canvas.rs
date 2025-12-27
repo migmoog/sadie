@@ -1,32 +1,17 @@
-mod actions;
-mod array2d;
+use super::{array2d::Array2D, CharID, Charset};
 
-use array2d::Array2D;
+use euclid::default::Size2D;
 
-use euclid::default::{Point2D, Size2D};
+use super::CanvasPos;
 
-pub type CharID = u16;
-
-/// Keeps track of Characters for drawing textmode art
-pub trait Charset: Clone {
-    /// Data to be returned when providing a `CharID`
-    type Item;
-
-    /// Return the character corresponding to the id
-    fn get_char(&self, id: CharID) -> Self::Item;
-
-    /// Returns the number of characters in this set
-    fn len(&self) -> u16;
-}
-
-pub type CanvasPos = Point2D<u16>;
 pub struct Cursor {
     origin: Option<CanvasPos>,
     position: CanvasPos,
     bounds: Size2D<u16>,
 }
+
 impl Cursor {
-    fn new(position: CanvasPos, bottom_bound: u16, right_bound: u16) -> Self {
+    pub(crate) fn new(position: CanvasPos, bottom_bound: u16, right_bound: u16) -> Self {
         Self {
             origin: None,
             position,
@@ -41,24 +26,24 @@ impl Cursor {
 
 pub struct Canvas<C, A = ()> {
     /// The full grid of items.
-    data: Array2D<(CharID, A)>,
+    pub(crate) data: Array2D<(CharID, A)>,
 
     /// Represents all possible values that can be placed on the Canvas.
     /// Meant to decouple the backend from the frontend, for example a TUI frontend
     /// might have just ASCII or UTF-8, but this raylib frontend has numerical IDs that
     /// correspond to characters.
-    charset: C,
+    pub(crate) charset: C,
 
     /// Canvas may have multiple cursors for doing actions. Examples:
     ///  - Font canvas has a cursor for picking a character
     ///  - Palette canvas has a cursor for picking a character
-    cursors: Vec<Cursor>,
+    pub(crate) cursors: Vec<Cursor>,
 }
 
 pub struct CanvasBuilder<C> {
-    size: Option<Size2D<u16>>,
-    charset: C,
-    cursor_positions: Vec<CanvasPos>,
+    pub(crate) size: Option<Size2D<u16>>,
+    pub(crate) charset: C,
+    pub(crate) cursor_positions: Vec<CanvasPos>,
 }
 
 impl<T, C> CanvasBuilder<C>
@@ -172,7 +157,7 @@ where
 }
 
 #[cfg(test)]
-mod canvas_model_test {
+pub(crate) mod canvas_model_test {
     use super::*;
     use std::collections::HashMap;
 
@@ -213,7 +198,6 @@ mod canvas_model_test {
     enum Soil {
         #[default]
         Brown,
-        Black,
         Green,
     }
 

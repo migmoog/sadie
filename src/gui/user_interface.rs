@@ -1,6 +1,9 @@
 use crate::{
+    core::{
+        canvas::{Canvas, CanvasBuilder, Cursor},
+        CanvasPos, CharID, Charset,
+    },
     gui::{font::TextmodeFont, palette::Palette, GuiCharset},
-    model::{Canvas, CanvasBuilder, CanvasPos, CharID, Charset, Cursor},
 };
 use euclid::default::{Point2D, Size2D};
 use raylib::prelude::*;
@@ -79,20 +82,8 @@ fn draw_x_cursor<Rd: RaylibDraw>(d: &mut Rd, c: &Cursor, size: Size2D<u16>) {
     let start: Point2D<i32> = ({ p.x * size.width } as i32, { p.y * size.height } as i32).into();
     let end: Point2D<i32> = (start.x + size.width as i32, start.y + size.height as i32).into();
 
-    d.draw_line(
-        start.x,
-        start.y,
-        end.x,
-        end.y,
-        Color::RED
-    );
-    d.draw_line(
-        start.x,
-        end.y,
-        end.x,
-        start.y,
-        Color::RED
-    );
+    d.draw_line(start.x, start.y, end.x, end.y, Color::RED);
+    d.draw_line(start.x, end.y, end.x, start.y, Color::RED);
 }
 
 fn draw_charset_picker<Rd>(
@@ -122,12 +113,8 @@ fn draw_charset_picker<Rd>(
     rl.draw_texture(&gc, p.x.into(), p.y.into(), Color::WHITE);
 }
 
-fn draw_color_picker<Rd>(
-    gc: &mut GuiCanvas<Palette>,
-    p: CanvasPos,
-    rl: &mut Rd,
-    rt: &RaylibThread,
-) where
+fn draw_color_picker<Rd>(gc: &mut GuiCanvas<Palette>, p: CanvasPos, rl: &mut Rd, rt: &RaylibThread)
+where
     Rd: RaylibDraw + RaylibTextureModeExt,
 {
     let s = gc.model.charset().get_char_size();

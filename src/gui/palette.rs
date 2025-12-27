@@ -1,4 +1,7 @@
-use crate::{gui::GuiCharset, model::{CharID, Charset}};
+use crate::{
+    core::{CharID, Charset},
+    gui::GuiCharset,
+};
 use euclid::default::Size2D;
 use raylib::prelude::*;
 

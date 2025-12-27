@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::Deref, rc::Rc};
 use euclid::default::Size2D;
 use raylib::prelude::*;
 
-use crate::{SadieError, gui::GuiCharset, model::{CharID, Charset}};
+use crate::{SadieError, gui::GuiCharset, core::{CharID, Charset}};
 
 #[cfg(test)]
 mod textmode_font_test {

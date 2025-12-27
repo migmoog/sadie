@@ -2,7 +2,7 @@
 mod font;
 mod palette;
 // Contains the components of the GUI that the users use to paint to a canvas
-mod draw_mode;
+mod user_interface;
 
 use std::collections::HashMap;
 
@@ -13,8 +13,8 @@ use palette::Palette;
 /// GUI for image based textmode. Powered by raylib
 use raylib::prelude::*;
 
-use crate::gui::draw_mode::GuiComponent;
-use crate::model::{CanvasBuilder, CanvasPos, Charset};
+use crate::gui::user_interface::GuiComponent;
+use crate::core::{canvas::CanvasBuilder, CanvasPos, Charset};
 use crate::SadieError;
 
 pub trait GuiCharset: Charset {

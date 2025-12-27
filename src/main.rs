@@ -4,8 +4,7 @@ use thiserror::Error;
 use crate::gui::Client;
 
 mod gui;
-mod model;
-mod tui;
+mod core;
 
 #[derive(Error, Debug)]
 pub enum SadieError {
