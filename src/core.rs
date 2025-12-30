@@ -1,9 +1,9 @@
-mod environment;
+pub mod actions;
 mod array2d;
-mod gallery;
 pub mod canvas;
+pub mod gallery;
 
-use euclid::default::{Point2D};
+use euclid::default::Point2D;
 
 pub type CharID = u16;
 

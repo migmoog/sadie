@@ -1,8 +1,12 @@
-use std::{collections::HashMap, ops::Deref, rc::Rc};
 use euclid::default::Size2D;
 use raylib::prelude::*;
+use std::{collections::HashMap, ops::Deref, rc::Rc};
 
-use crate::{SadieError, gui::GuiCharset, core::{CharID, Charset}};
+use crate::{
+    core::{CharID, Charset},
+    gui::GuiCharset,
+    SadieError,
+};
 
 #[cfg(test)]
 mod textmode_font_test {
@@ -59,6 +63,12 @@ impl Deref for TextmodeFontSource {
 pub struct TextmodeFont {
     pub source: TextmodeFontSource,
     char_quads: HashMap<CharID, Rectangle>,
+}
+
+impl AsRef<raylib::ffi::Texture2D> for TextmodeFont {
+    fn as_ref(&self) -> &raylib::ffi::Texture2D {
+        &self.source
+    }
 }
 
 impl Charset for TextmodeFont {
@@ -123,7 +133,8 @@ impl TextmodeFont {
         columns: u16,
         rows: u16,
     ) -> Result<Self, SadieError> {
-        let source = TextmodeFontSource::new(rl.load_texture(rt, filename).map_err(SadieError::Raylib)?);
+        let source =
+            TextmodeFontSource::new(rl.load_texture(rt, filename).map_err(SadieError::Raylib)?);
         // should only have the colors black and white
         let palette = source
             .load_image()

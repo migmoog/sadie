@@ -1,3 +1,5 @@
+use crate::core::canvas::Canvas;
+
 pub trait Gallery {
     /// Some sort of enum that the client can use to determine how to render canvases
     type CanvasVariant;
@@ -13,6 +15,8 @@ pub trait Gallery {
     }
 }
 
-pub struct Environment<G> {
-    gallery: G,
+/// Save yourself trouble and implement if you need
+pub trait FindCanvas<C, A> {
+    type CanvasID: Copy + Clone;
+    fn find_canvas(&self, id: Self::CanvasID) -> Option<&Canvas<C, A>>;
 }

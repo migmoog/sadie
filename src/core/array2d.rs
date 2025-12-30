@@ -67,6 +67,13 @@ impl<T> IndexMut<[u16; 2]> for Array2D<T> {
     }
 }
 
+impl<T> From<( Vec<T>,  u16)> for Array2D<T> {
+    fn from(value: ( Vec<T>, u16 )) -> Self {
+        let (cells, width) = value;
+        Self(cells, width)
+    }
+}
+
 #[cfg(test)]
 mod array_2d_test {
     use super::Array2D;

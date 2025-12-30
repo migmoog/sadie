@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-clap = "4.5.53"
+clap = { version = "4.5.53", features = ["derive"] }
 euclid = "0.22.11"
+logos = "0.16.0"
 raylib ={ version = "5.0" }
 thiserror = "2.0.17"

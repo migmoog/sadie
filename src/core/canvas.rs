@@ -26,41 +26,54 @@ impl Cursor {
 
 pub struct Canvas<C, A = ()> {
     /// The full grid of items.
-    pub(crate) data: Array2D<(CharID, A)>,
+    data: Array2D<(CharID, A)>,
 
     /// Represents all possible values that can be placed on the Canvas.
     /// Meant to decouple the backend from the frontend, for example a TUI frontend
     /// might have just ASCII or UTF-8, but this raylib frontend has numerical IDs that
     /// correspond to characters.
-    pub(crate) charset: C,
+    charset: C,
 
     /// Canvas may have multiple cursors for doing actions. Examples:
     ///  - Font canvas has a cursor for picking a character
     ///  - Palette canvas has a cursor for picking a character
-    pub(crate) cursors: Vec<Cursor>,
+    cursors: Vec<Cursor>,
 }
 
-pub struct CanvasBuilder<C> {
-    pub(crate) size: Option<Size2D<u16>>,
-    pub(crate) charset: C,
-    pub(crate) cursor_positions: Vec<CanvasPos>,
+pub struct CanvasBuilder<C, A = ()> {
+    size: Size2D<u16>,
+    charset: C,
+    cursor_positions: Vec<CanvasPos>,
+    default_cells: Option<Vec<(CharID, A)>>,
 }
 
-impl<T, C> CanvasBuilder<C>
+impl<T, C, A> CanvasBuilder<C, A>
 where
     C: Charset<Item = T>,
+    A: Default,
 {
     pub fn init(charset: C) -> Self {
         Self {
-            size: None,
+            size: (charset.len(), 1).into(),
             cursor_positions: vec![],
             charset,
+            default_cells: None,
         }
     }
 
     /// Specifies the dimensions of the canvas
-    pub fn size(mut self, width: u16, height: u16) -> Self {
-        self.size = Some((width, height).into());
+    pub fn size(mut self, size: Size2D<u16>) -> Self {
+        self.size = size;
+        self
+    }
+
+    pub fn width(mut self, width: u16) -> Self {
+        self.size.width = width;
+        self
+    }
+
+    pub fn height(mut self, height: u16) -> Self {
+        self.size.height = height;
         self
     }
 
@@ -70,8 +83,26 @@ where
         self
     }
 
-    pub fn build<A: Default>(self) -> Canvas<C, A> {
-        let (width, height) = self.size.map(|s| s.into()).unwrap_or((8, 8));
+    /// Uses a function to create the default members of a grid
+    pub fn default_cells<F>(mut self, func: F) -> Self
+    where
+        F: Fn(CharID, &C) -> (CharID, A),
+    {
+        self.default_cells = Some(
+            (0..self.size.area())
+                .map(|id| func(id, &self.charset))
+                .collect(),
+        );
+        self
+    }
+
+    /// Sets the first characters of a charset to be each character of the charset
+    pub fn char_cascade(self) -> Self {
+        self.default_cells(|id, c| (if id < c.len() { id } else { 0 }, A::default()))
+    }
+
+    pub fn build(self) -> Canvas<C, A> {
+        let (width, height) = self.size.into();
         let mut cursors = self.cursor_positions;
         if cursors.is_empty() {
             cursors.push((0, 0).into());
@@ -81,15 +112,17 @@ where
             .map(|p| Cursor::new(p, width, height))
             .collect();
 
+        let data = if let Some(default_cells) = self.default_cells {
+            (default_cells, width).into()
+        } else {
+            Array2D::new(width, height)
+        };
+
         Canvas {
-            data: Array2D::new(width, height),
+            data,
             charset: self.charset,
             cursors,
         }
-    }
-
-    pub fn build_no_attrs(self) -> Canvas<C> {
-        self.build::<()>()
     }
 }
 
